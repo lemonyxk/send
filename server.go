@@ -125,6 +125,6 @@ func fileData(stream *socket.Stream[server.Conn]) error {
 }
 
 func str(stream *socket.Stream[server.Conn]) error {
-	console.FgBlack.Println(string(stream.Data))
+	console.Bold.Println(string(stream.Data))
 	return nil
 }
