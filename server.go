@@ -35,6 +35,8 @@ func runTcpServer() {
 
 	tcpServer = kitty.NewTcpServer(addr)
 
+	tcpServer.WriteBufferSize = 1024 * 1024 * 4
+	tcpServer.ReadBufferSize = 1024 * 1024 * 4
 	tcpServer.HeartBeatTimeout = time.Second * 5
 
 	// tcpServer.CertFile = "example/ssl/localhost+2.pem"
