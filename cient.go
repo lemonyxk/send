@@ -88,7 +88,7 @@ func sendFile(path string) {
 		console.Exit(err)
 	}
 
-	s := make([]byte, info.Size/1000)
+	s := make([]byte, 1024*1024*4)
 	for {
 		switch nr, err := f.Read(s[:]); true {
 		case nr < 0:
