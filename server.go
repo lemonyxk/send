@@ -107,18 +107,24 @@ func fileData(stream *socket.Stream[server.Conn]) error {
 	_, _ = file.Write(stream.Data)
 	current += int64(len(stream.Data))
 
-	console.OneLine("%s %.1f%% %s %.1fS", fullPath, float64(current)/float64(info.Size)*100, size(info.Size), float64(time.Since(startTime).Milliseconds())/1000)
+	var str = console.FgYellow.Sprintf("%s %.1f%% %s %.1fS",
+		fullPath,
+		float64(current)/float64(info.Size)*100,
+		size(info.Size),
+		float64(time.Since(startTime).Milliseconds())/1000,
+	)
+
+	console.OneLine("%s", str)
 
 	if current == info.Size {
 		_ = file.Close()
 		console.Info()
-		// console.Info("TIME:", float64(time.Since(t).Milliseconds())/1000, "SECONDS")
 	}
 
 	return stream.Emit(stream.Event, []byte("OK"))
 }
 
 func str(stream *socket.Stream[server.Conn]) error {
-	console.Info(string(stream.Data))
+	console.FgBlack.Println(string(stream.Data))
 	return nil
 }
