@@ -11,7 +11,6 @@
 package main
 
 import (
-	"io"
 	"os"
 	"time"
 
@@ -87,20 +86,24 @@ func sendFile(path string) {
 		console.Exit(err)
 	}
 
-	var w = &writer{
-		total: stat.Size(),
-		onData: func(bytes []byte) {
-			stream, err := tcpSyncClient.Emit("/server/fileData", bytes)
+	s := make([]byte, 40960)
+	for {
+		switch nr, err := f.Read(s[:]); true {
+		case nr < 0:
+			console.Exit(err)
+		case nr == 0: // EOF
+			return
+		case nr > 0:
+			stream, err := tcpSyncClient.Emit("/server/fileData", s[0:nr])
 			if err != nil {
 				console.Error(err)
 			}
 			if string(stream.Data) != "OK" {
 				console.Exit(err)
 			}
-		},
+		}
 	}
 
-	_, _ = io.ReadAll(io.TeeReader(f, w))
 }
 
 func sendStr(str string) {
