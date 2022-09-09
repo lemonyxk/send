@@ -74,10 +74,6 @@ func size(i int64) string {
 
 	var s = float64(i)
 
-	if s < 1024 {
-		return fmt.Sprintf("%.1fB", s)
-	}
-
 	if s < 1024*1024 {
 		return fmt.Sprintf("%.1fKB", s/1024)
 	}
@@ -111,7 +107,7 @@ func fileData(stream *socket.Stream[server.Conn]) error {
 	_, _ = file.Write(stream.Data)
 	current += int64(len(stream.Data))
 
-	console.OneLine("%s %d%% %s %.1fS", fullPath, current/info.Size*100, size(info.Size), float64(time.Since(startTime).Milliseconds())/1000)
+	console.OneLine("%s %.1f%% %s %.1fS", fullPath, float64(current)/float64(info.Size)*100, size(info.Size), float64(time.Since(startTime).Milliseconds())/1000)
 
 	if current == info.Size {
 		_ = file.Close()
