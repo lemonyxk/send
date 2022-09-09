@@ -11,7 +11,10 @@
 package main
 
 import (
+	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/lemonyxk/console"
@@ -54,25 +57,69 @@ func runTcpClient(addr string) chan struct{} {
 }
 
 type FileInfo struct {
-	Name string
-	Size int64
+	Name   string
+	Size   int64
+	Prefix string
 }
 
 func sendFile(path string) {
-
-	var f, err = os.Open(path)
+	stat, err := os.Stat(path)
 	if err != nil {
 		console.Exit(err)
 	}
 
-	stat, err := f.Stat()
+	if !stat.IsDir() {
+		var dir = filepath.Dir(path)
+		doFile(dir, dir, stat)
+		return
+	}
+
+	var fn func(p string)
+
+	fn = func(p string) {
+		files, err := os.ReadDir(p)
+		if err != nil {
+			console.Error(err)
+			return
+		}
+
+		for i := 0; i < len(files); i++ {
+			var fullPath = filepath.Join(p, files[i].Name())
+			if files[i].IsDir() {
+				fn(fullPath)
+				continue
+			}
+
+			info, err := files[i].Info()
+			if err != nil {
+				console.Error(err)
+				continue
+			}
+
+			doFile(p, path, info)
+		}
+	}
+
+	fn(path)
+}
+
+var buf = make([]byte, 1024*1024*4)
+
+func doFile(fullPath string, rPath string, stat fs.FileInfo) {
+
+	console.Info(filepath.Join(fullPath, stat.Name()))
+
+	f, err := os.Open(filepath.Join(fullPath, stat.Name()))
 	if err != nil {
 		console.Exit(err)
 	}
+
+	defer func() { _ = f.Close() }()
 
 	var info = FileInfo{
-		Name: stat.Name(),
-		Size: stat.Size(),
+		Name:   stat.Name(),
+		Size:   stat.Size(),
+		Prefix: strings.ReplaceAll(fullPath, rPath, ""),
 	}
 
 	var bts = utils.Json.Encode(info)
@@ -85,18 +132,17 @@ func sendFile(path string) {
 	}
 
 	if string(stream.Data) != "OK" {
-		console.Exit(err)
+		console.Exit(string(stream.Data))
 	}
 
-	s := make([]byte, 1024*1024*4)
 	for {
-		switch nr, err := f.Read(s[:]); true {
+		switch nr, err := f.Read(buf[:]); true {
 		case nr < 0:
 			console.Exit(err)
 		case nr == 0: // EOF
 			return
 		case nr > 0:
-			stream, err := tcpSyncClient.Emit("/server/fileData", s[0:nr])
+			stream, err := tcpSyncClient.Emit("/server/fileData", buf[0:nr])
 			if err != nil {
 				console.Error(err)
 			}

@@ -21,7 +21,8 @@ import (
 
 func init() {
 	console.SetFlags(0)
-	console.Colorful(false)
+	// console.Colorful(false)
+	console.SetInfoColor(console.FgGreen)
 
 	if HasArgs("--debug", os.Args) {
 		console.SetFlags(console.FILE)

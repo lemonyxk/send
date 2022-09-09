@@ -11,6 +11,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -65,25 +66,42 @@ func runTcpServer() {
 var info FileInfo
 var current int64 = 0
 var file *os.File
-var t time.Time
+
+var startTime time.Time
+var fullPath string
+
+func size(i int64) string {
+
+	var s = float64(i)
+
+	if s < 1024 {
+		return fmt.Sprintf("%.1fB", s)
+	}
+
+	if s < 1024*1024 {
+		return fmt.Sprintf("%.1fKB", s/1024)
+	}
+
+	return fmt.Sprintf("%.1fMB", s/1024/1024)
+}
 
 func fileInfo(stream *socket.Stream[server.Conn]) error {
 	var err = utils.Json.Decode(stream.Data, &info)
 	if err != nil {
-		console.Error(err)
-		return stream.Emit(stream.Event, nil)
+		return stream.Emit(stream.Event, []byte(err.Error()))
 	}
 
-	file, err = os.OpenFile(filepath.Join(savePath, info.Name),
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	var path = filepath.Join(savePath, info.Prefix)
+	_ = os.MkdirAll(path, os.ModeDir|os.FileMode(0755))
+
+	fullPath = filepath.Join(savePath, info.Prefix, info.Name)
+	file, err = os.OpenFile(fullPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		return stream.Emit(stream.Event, nil)
+		return stream.Emit(stream.Event, []byte(err.Error()))
 	}
 
 	current = 0
-	t = time.Now()
-
-	console.Info("RECEIVING FILE:", info.Name, info.Size/1024/1024, "MB")
+	startTime = time.Now()
 
 	return stream.Emit(stream.Event, []byte("OK"))
 }
@@ -93,12 +111,12 @@ func fileData(stream *socket.Stream[server.Conn]) error {
 	_, _ = file.Write(stream.Data)
 	current += int64(len(stream.Data))
 
+	console.OneLine("%s %d%% %s %.1fS", fullPath, current/info.Size*100, size(info.Size), float64(time.Since(startTime).Milliseconds())/1000)
+
 	if current == info.Size {
 		_ = file.Close()
-		console.Info("\nRECEIVED FILE:", info.Name, info.Size/1024/1024, "MB")
-		console.Info("TIME:", float64(time.Since(t).Milliseconds())/1000, "SECONDS")
-	} else {
-		console.OneLine("CURRENT: %d MB TOTAL: %d MB", current/1024/1024, info.Size/1024/1024)
+		console.Info()
+		// console.Info("TIME:", float64(time.Since(t).Milliseconds())/1000, "SECONDS")
 	}
 
 	return stream.Emit(stream.Event, []byte("OK"))
